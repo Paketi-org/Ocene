@@ -1,0 +1,30 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+flask = "*"
+flask-restful = "*"
+psycopg2-binary = "*"
+py-healthcheck = "*"
+requests = "*"
+flask-unittest = "*"
+pytest = "*"
+dynaconf = "*"
+python-dotenv = "*"
+prometheus-flask-exporter = "*"
+apispec = "*"
+marshmallow = "*"
+apispec-webframeworks = "*"
+flask-apispec = "*"
+flask-restplus = "*"
+flask-restx = "*"
+grpcio = "*"
+grpcio-tools = "*"
+fluent-logger = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
