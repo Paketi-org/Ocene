@@ -57,7 +57,16 @@ ocenaApiModel = api.model('ModelOceno', {
     "ime": fields.String(readonly=True, description='Ime narocnika'),
     "ocena": fields.String(readonly=True, description='Ocena aplikacije'),
 })
+
+pritozbaApiModel = api.model('ModelOceno', {
+    "id": fields.Integer(readonly=True, description='ID ocene'),
+    "ime_vir": fields.String(readonly=True, description='Ime narocnika ki daja pritozbo'),
+    "ime_cilj": fields.String(readonly=True, description='Ime narocnika na katerega ima pritozbo'),
+    "pritozba": fields.String(readonly=True, description='Ocena aplikacije'),
+})
+
 oceneApiModel = api.model('ModelNarocnikov', {"ocene": fields.List(fields.Nested(ocenaApiModel))})
+pritozbeApiModel = api.model('ModelPritozbe', {"pritozbe": fields.List(fields.Nested(pritozbaApiModel))})
 ns = api.namespace('Ocene CRUD', description='Ocene koncne tocke in operacije')
 posodobiModel = api.model('PosodobiOceno', {
     "atribut": fields.String,
@@ -246,6 +255,187 @@ class ListNarocnikov(Resource):
 
         return ocena, 201
 
+################################################################################################################
+class PritozbaModel:
+    def __init__(self, id, ime_vir, ime_cilj, pritozba):
+        self.id = id
+        self.ime_vir = ime_vir
+        self.ime_cilj = ime_cilj
+        self.pritozba = pritozba
+
+pritozbePolja = {
+    "id": fields.Integer,
+    "ime_vir": fields.String,
+    "ime_cilj": fields.String,
+    "pritozba": fields.String,
+}
+
+
+class Pritozba(Resource):
+    def __init__(self, *args, **kwargs):
+        self.table_name = 'pritozbe'
+        self.conn = connect_to_database()
+        self.cur = self.conn.cursor()
+
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument("id", type=int)
+        self.parser.add_argument("ime_vir", type=str)
+        self.parser.add_argument("ime_cilj", type=str)
+        self.parser.add_argument("pritozba", type=str)
+        super(Pritozba, self).__init__(*args, **kwargs)
+
+    @marshal_with(pritozbaApiModel)
+    @ns.response(404, 'Pritozba ni najdena')
+    @ns.doc("Vrni pritozbo")
+    def get(self, id):
+        """
+        Vrni podatke pritozbo glede na ID
+        """
+        l.info("Zahtevaj pritozbo z ID %s" % str(id), extra={"name_of_service": "Ocene", "crud_method": "get", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
+        self.cur.execute("SELECT * FROM pritozbe WHERE id = %s" % str(id))
+        row = self.cur.fetchall()
+
+        if(len(row) == 0):
+            l.warning("Pritozba z ID %s ni bila najdena in ne bo izbrisana" % str(id), extra={"name_of_service": "Ocene", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "fail", "http_code": 404})
+            abort(404, "Pritozba ni bila najdena")
+
+        d = {}
+        for el, k in zip(row[0], pritozbePolja):
+            d[k] = el
+
+        pritozba = PritozbaModel(
+                id = d["id"],
+                ime_vir = d["ime_vir"].strip(),
+                ime_cilj = d["ime_cilj"].strip(),
+                pritozba = d["pritozba"].strip())
+
+        l.info("Vrni pritozbo z ID %s" % str(id), extra={"name_of_service": "Ocene", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 200})
+
+        return pritozba, 200
+
+    @ns.doc("Izbrisi oceno")
+    @ns.response(404, 'Narocnik ni najden')
+    @ns.response(204, 'Narocnik izbrisan')
+    def delete(self, id):
+        """
+        Izbriši pritozbo glede na ID
+        """
+        l.info("Izbrisi pritozba z ID %s" % str(id), extra={"name_of_service": "Ocene", "crud_method": "delete", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
+        self.cur.execute("SELECT * FROM pritozbe")
+        rows = self.cur.fetchall()
+        ids = []
+        for row in rows:
+            ids.append(row[0])
+
+        if id not in ids:
+            l.warning("Ocena z ID %s ni bil najden in ne bo izbrisan" % str(id), extra={"name_of_service": "Ocene", "crud_method": "delete", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "fail", "http_code": 404})
+            abort(404)
+        else:
+            self.cur.execute("DELETE FROM pritozbe WHERE id = %s" % str(id))
+            self.conn.commit()
+
+        l.info("Pritozba z ID %s izbrisan" % str(id), extra={"name_of_service": "Ocene", "crud_method": "delete", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 204})
+
+        return 204
+
+class ListPritozb(Resource):
+    def __init__(self, *args, **kwargs):
+        self.table_name = 'pritozbe'
+        self.conn = connect_to_database()
+        self.cur = self.conn.cursor()
+        self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", (self.table_name,))
+        if self.cur.fetchone()[0]:
+            print("Table {0} already exists".format(self.table_name))
+        else:
+            self.cur.execute('''CREATE TABLE pritozbe (
+                                id INT NOT NULL,
+                                ime_vir CHAR(25),
+                                ime_cilj CHAR(25),
+                                pritozba CHAR(300)
+                             )''')
+
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument("id", type=int, required=True, help="ID naročnika je obvezen")
+        self.parser.add_argument("ime", type=str, required=False, help="Ime uporabnika")
+        self.parser.add_argument("pritozba", type=str, required=False, help="Ocena")
+        self.parser.add_argument("id_uporabnika_vir", type=int, required=False, help="ID uporabnika")
+        self.parser.add_argument("id_uporabnika_cilj", type=int, required=False, help="ID uporabnika")
+
+        super(ListPritozb, self).__init__(*args, **kwargs)
+
+    @ns.marshal_list_with(pritozbeApiModel)
+    @ns.doc("Vrni vse pritozbe")
+    def get(self):
+        """
+        Vrni vse pritozbe
+        """
+        l.info("Zahtevaj vse pritozbe", extra={"name_of_service": "Ocene", "crud_method": "get", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
+        self.cur.execute("SELECT * FROM pritozbe")
+        rows = self.cur.fetchall()
+        ds = {}
+        i = 0
+        for row in rows:
+            ds[i] = {}
+            for el, k in zip(row, pritozbePolja):
+                ds[i][k] = el
+            i += 1
+
+        pritozbe = []
+        for d in ds:
+            pritozba = PritozbaModel(
+                    id = ds[d]["id"],
+                    ime_vir = ds[d]["ime_vir"].strip(),
+                    ime_cilj = ds[d]["ime_cilj"].strip(),
+                    pritozba = ds[d]["pritozba"].strip())
+            pritozbe.append(pritozba)
+
+        l.info("Vrni vse pritozbe", extra={"name_of_service": "Pritozbe", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 200})
+            
+        return {"pritozbe": pritozbe}, 200 
+
+    @marshal_with(pritozbaApiModel)
+    @ns.expect(pritozbaApiModel)
+    @ns.doc("Dodaj oceno")
+    def post(self):
+        """
+        Dodaj novo pritozbo
+        """
+        l.info("Dodaj novega oceno", extra={"name_of_service": "Ocene", "crud_method": "post", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
+        args = self.parser.parse_args()
+
+        ime_uporabnika_vir = None
+        vir_vir = app.config["UPORABNIKI_IP"] + "narocniki/" + str(args["id_uporabnika_vir"])
+        resp_vir = requests.get(vir_vir)
+        if resp_vir.status_code != 200:
+            id = args["id_uporabnika_vir"]
+            l.warning("Uprabnik z ID %s ni bil najden".format(id))
+            abort(404, f"Uporabnik z ID {id} ni bil najden")
+
+        uporabniki_podatki = resp_vir.json()
+        ime_uporabnika_vir = uporabniki_podatki["ime"]
+
+        ime_uporabnika_cilj = None
+        vir_cilj = app.config["UPORABNIKI_IP"] + "narocniki/" + str(args["id_uporabnika_cilj"])
+        resp_cilj = requests.get(vir_cilj)
+        if resp_cilj.status_code != 200:
+            l.warning("Uprabnik z ID %s ni bil najden".format(args["id_uporabnika"]))
+            abort(404, f"Uporabnik z ID {id} ni bil najden")
+
+        uporabniki_podatki = resp_cilj.json()
+        ime_uporabnika_cilj = uporabniki_podatki["ime"]
+
+        self.cur.execute('''INSERT INTO {0} (id, ime_vir, ime_cilj, pritozba)
+                VALUES ({1}, '{2}', '{3}', '{4}')'''.format('pritozbe', args["id"], ime_uporabnika_vir, ime_uporabnika_cilj, args["pritozba"]))
+        self.conn.commit()
+        pritozba = PritozbaModel(
+                id = args["id"],
+                ime_vir = ime_uporabnika_vir,
+                ime_cilj = ime_uporabnika_cilj,
+                pritozba = args["pritozba"].strip())
+
+        l.info("Nov pritozba dodan", extra={"name_of_service": "Ocene", "crud_method": "post", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 201})
+
+        return pritozba, 201
 
 health = HealthCheck()
 envdump = EnvironmentDump()
@@ -255,6 +445,8 @@ app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
 app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
 api.add_resource(ListNarocnikov, "/ocene")
 api.add_resource(Narocnik, "/ocene/<int:id>")
+api.add_resource(ListPritozb, "/pritozbe")
+api.add_resource(Pritozba, "/pritozbe/<int:id>")
 l.info("Ocene App pripravljen", extra={"name_of_service": "Ocene", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
 
 app.run(host="0.0.0.0", port=5013)
