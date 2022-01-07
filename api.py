@@ -202,7 +202,7 @@ class Narocnik(Resource):
     @ns.doc("Vrni oceno")
     def get(self, id):
         """
-        Vrni podatke oceno glede na ID
+        Vrni podatke ocene glede na ID
         """
         l.info(
             "Zahtevaj oceno z ID %s" % str(id),
@@ -349,7 +349,7 @@ class ListNarocnikov(Resource):
         Vrni vse ocenae
         """
         l.info(
-            "Zahtevaj vse ocenae",
+            "Zahtevaj vse ocene",
             extra={
                 "name_of_service": "Ocene",
                 "crud_method": "get",
@@ -480,7 +480,7 @@ class Pritozba(Resource):
     @ns.doc("Vrni pritozbo")
     def get(self, id):
         """
-        Vrni podatke pritozbo glede na ID
+        Vrni podatke pritozbe glede na ID
         """
         l.info(
             "Zahtevaj pritozbo z ID %s" % str(id),
@@ -498,7 +498,7 @@ class Pritozba(Resource):
 
         if len(row) == 0:
             l.warning(
-                "Pritozba z ID %s ni bila najdena in ne bo izbrisana" % str(id),
+                "Pritozba z ID %s ni bila najdena" % str(id),
                 extra={
                     "name_of_service": "Ocene",
                     "crud_method": "get",
@@ -535,15 +535,15 @@ class Pritozba(Resource):
 
         return pritozba, 200
 
-    @ns.doc("Izbrisi oceno")
-    @ns.response(404, "Narocnik ni najden")
-    @ns.response(204, "Narocnik izbrisan")
+    @ns.doc("Izbrisi pritozbo")
+    @ns.response(404, "Pritozba ni najdena")
+    @ns.response(204, "Pritozba izbrisana")
     def delete(self, id):
         """
         Izbriši pritozbo glede na ID
         """
         l.info(
-            "Izbrisi pritozba z ID %s" % str(id),
+            "Izbrisi pritozbo z ID %s" % str(id),
             extra={
                 "name_of_service": "Ocene",
                 "crud_method": "delete",
@@ -561,7 +561,7 @@ class Pritozba(Resource):
 
         if id not in ids:
             l.warning(
-                "Ocena z ID %s ni bil najden in ne bo izbrisan" % str(id),
+                "Pritozba z ID %s ni bila najdena in ne bo izbrisana" % str(id),
                 extra={
                     "name_of_service": "Ocene",
                     "crud_method": "delete",
@@ -667,7 +667,7 @@ class ListPritozb(Resource):
         l.info(
             "Vrni vse pritozbe",
             extra={
-                "name_of_service": "Pritozbe",
+                "name_of_service": "Ocene",
                 "crud_method": "get",
                 "directions": "out",
                 "ip_node": socket.gethostbyname(socket.gethostname()),
@@ -680,13 +680,13 @@ class ListPritozb(Resource):
 
     @marshal_with(pritozbaApiModel)
     @ns.expect(pritozbaApiModel)
-    @ns.doc("Dodaj oceno")
+    @ns.doc("Dodaj pritozbo")
     def post(self):
         """
         Dodaj novo pritozbo
         """
         l.info(
-            "Dodaj novega oceno",
+            "Dodaj novo pritozbo",
             extra={
                 "name_of_service": "Ocene",
                 "crud_method": "post",
@@ -742,7 +742,7 @@ class ListPritozb(Resource):
         )
 
         l.info(
-            "Nov pritozba dodan",
+            "Nova pritozba dodana",
             extra={
                 "name_of_service": "Ocene",
                 "crud_method": "post",
